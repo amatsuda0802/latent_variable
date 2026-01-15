@@ -34,19 +34,19 @@ def extract_segment(y, sr, start, end):
 import numpy as np
 # import librosa
 
-def extract_features(segment, sr):
+def extract_features(segment, sr): # segment：1発話に対応する音声波形の一部
     if len(segment) == 0:
         return None
 
-    energy = np.mean(segment ** 2)
+    energy = np.mean(segment ** 2) # エネルギー，振幅の2乗の時間平均：直感的には，声が大きい，強いと値が大きく，小声や沈黙に近いと値が小さい
 
-    zcr = librosa.feature.zero_crossing_rate(segment).mean()
+    zcr = librosa.feature.zero_crossing_rate(segment).mean() # ゼロ交差率，波形が0を何回またぐか：値が大きいと子音が多くノイズっぽく早口，値が小さいと母音が多くなめらかでゆったり
 
-    f0 = librosa.yin(segment, fmin=50, fmax=300, sr=sr)
+    f0 = librosa.yin(segment, fmin=50, fmax=300, sr=sr) # ピッチ，声帯の振動周期，声の高さ：
     f0 = f0[f0 > 0]
-    f0_mean = f0.mean() if len(f0) > 0 else np.nan
+    f0_mean = f0.mean() if len(f0) > 0 else np.nan # ピッチの平均：発話の声の高さの傾向
 
-    return energy, zcr, f0_mean
+    return energy, zcr, f0_mean # これらに加えて発話長が今回使う特徴量
 
 # ----------------------------------
 
@@ -54,7 +54,7 @@ import pandas as pd
 
 features = []
 
-for utt in utterances:
+for utt in utterances: # utterances：発話id，話者，発話開始時刻，発話終了時刻
     segment = extract_segment(y, sr, utt["start"], utt["end"])
     feats = extract_features(segment, sr)
 
@@ -66,7 +66,7 @@ for utt in utterances:
     features.append({
         "utterance_id": utt["utterance_id"],
         "speaker": utt["speaker"],
-        "duration": utt["end"] - utt["start"],
+        "duration": utt["end"] - utt["start"], # 発話長
         "energy": energy,
         "zcr": zcr,
         "f0_mean": f0_mean
@@ -83,7 +83,7 @@ df_clean = df.dropna()
 X = df_clean[["duration", "energy", "zcr", "f0_mean"]]
 
 scaler = StandardScaler()
-X_std = scaler.fit_transform(X)
+X_std = scaler.fit_transform(X) # 特徴量を標準化（どの特徴量も0から1の値になる，もとの特徴量の絶対値の大きさではなく基準が揃ってどの特徴も同じ影響力になる）
 
 # --------------------------------------------
 
@@ -98,7 +98,7 @@ loadings = pd.DataFrame(
     columns=["Factor1", "Factor2"]
 )
 
-print("=== 因子負荷量 ===")
+print("=== 因子負荷量 ===") # 各特徴量が各ファクターにどのようにどれくらい影響しているか
 print(loadings)
 
 # ------------------------------------------
@@ -106,4 +106,6 @@ print(loadings)
 df_clean["Factor1"] = Z[:, 0]
 df_clean["Factor2"] = Z[:, 1]
 
-print(df_clean.head())
+print(df_clean.head()) # 各発話について各ファクターの値が出る，ファクターのあたいの組み合わせ（両方高い，片方高くて片方小さい，など）と実際の発話内容や発話状況，話しやすさを照らし合わせて，このファクターがこういう組み合わせのとき話しやすさが高い状態だと言えるかもねみたいな感じの流れになるかな？
+
+# 因子の時間推移，ファクターの個数，話者ごとのファクターの傾向とか諸々と関連付けて色々考えることができるかも
