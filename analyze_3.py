@@ -123,7 +123,7 @@ print(df_clean.head()) # 各発話について各ファクターの値が出る�
 # 因子の時間推移，ファクターの個数，話者ごとのファクターの傾向とか諸々と関連付けて色々考えることができるかも
 # 特徴量増やしたり，別のデータで試したり，特に特徴量に関しては現状音声周りのことしか使ってないので見えの特徴とかも使えるかな
 # 状態遷移モデル(HMM)とかにもつないでいける？
-# とりあえずざっといじって色々見れそうな要素は，「因子数」「使う観測変数，特徴量」「使う対話データ」
+# とりあえずざっといじって色々見れそうな要素は，「因子数」「使う観測変数，特徴量」「使う対話データ」，「使うモデル」なんかもそうかな
 
 df_clean["time"] = (df_clean["start"] + df_clean["end"]) / 2
 
@@ -164,7 +164,7 @@ plt.legend()
 plt.title("Temporal transition of latent factors")
 
 # plt.savefig("./result/analyze/factor_transition_raw_2.png")
-plt.savefig("./result/analyze/factor_transition_raw_3.png") # 3因子の場合
+plt.savefig("./result/analyze_3/factor_transition_raw_3.png") # 3因子の場合
 
 plt.close()
 
@@ -197,5 +197,5 @@ plt.legend()
 
 plt.tight_layout()
 # plt.savefig("./result/analyze/factor_moving_average_2.png", dpi=300)
-plt.savefig("./result/analyze/factor_moving_average_3.png", dpi=300) # 3因子の場合
+plt.savefig("./result/analyze_3/factor_moving_average_3.png", dpi=300) # 3因子の場合
 plt.close()
