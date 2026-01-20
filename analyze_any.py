@@ -12,12 +12,13 @@ import os
 # 状態遷移モデル(HMM)とかにもつないでいける？
 # とりあえずざっといじって色々見れそうな要素は，「因子数」「使う観測変数，特徴量」「使う対話データ」，「使うモデル」なんかもそうかな
 
-# python3 analyze_2.py [data_eaf] [data_wav] [dir_result]
+# python3 analyze_any.py [data_eaf] [data_wav] [dir_result] n_factor
+n_factor = int(sys.argv[4])
 path_data  = "./data/"
-path_result = "./result/analyze_2/"
+path_result = "./result/analyze_any/"
 data_eaf = path_data + sys.argv[1]
 data_wav = path_data + sys.argv[2]
-dir_result = path_result + sys.argv[3]
+dir_result = path_result + sys.argv[3] + f"/factor_{n_factor}"
 os.makedirs(dir_result, exist_ok=True)
 
 eaf = pympi.Elan.Eaf(data_eaf)
@@ -94,14 +95,16 @@ scaler = StandardScaler()
 X_std = scaler.fit_transform(X) # 特徴量を標準化（どの特徴量も0から1の値になる，もとの特徴量の絶対値の大きさではなく基準が揃ってどの特徴も同じ影響力になる）
 
 # --------------------------------------------
-fa = FactorAnalysis(n_components=2, random_state=0) # 2因子
+fa = FactorAnalysis(n_components=n_factor, random_state=0)
 Z = fa.fit_transform(X_std)
+
+factor_names = [f"Factor{i+1}" for i in range(n_factor)]
 
 loadings = pd.DataFrame(
     fa.components_.T,
     index=X.columns,
-    columns=["Factor1", "Factor2"]
-) # 2因子
+    columns=factor_names
+)
 
 pd.set_option("display.max_columns", None) # pandasでの表示列数を最大に
 pd.options.display.width = 160 # 表示文字数設定
@@ -110,8 +113,8 @@ print("=== 因子負荷量 ===") # 各特徴量が各ファクターにどのよ
 print(loadings)
 
 # ------------------------------------------
-df_clean["Factor1"] = Z[:, 0]
-df_clean["Factor2"] = Z[:, 1]
+for i, fname in enumerate(factor_names):
+    df_clean[fname] = Z[:, i]
 
 print(df_clean.head()) # 各発話について各ファクターの値が出る，ファクターのあたいの組み合わせ（両方高い，片方高くて片方小さい，など）と実際の発話内容や発話状況，話しやすさを照らし合わせて，このファクターがこういう組み合わせのとき話しやすさが高い状態だと言えるかもねみたいな感じの流れになるかな？
 
@@ -120,48 +123,42 @@ df_clean["time"] = (df_clean["start"] + df_clean["end"]) / 2
 
 # 移動平均
 window = 20  # 発話20個分で平均（調整可）
-df_clean["Factor1_ma"] = (
-    df_clean["Factor1"]
-    .rolling(window=window, center=True)
-    .mean()
-)
-df_clean["Factor2_ma"] = (
-    df_clean["Factor2"]
-    .rolling(window=window, center=True)
-    .mean()
-)
+for fname in factor_names:
+    df_clean[f"{fname}_ma"] = (
+        df_clean[fname]
+        .rolling(window=window, center=True)
+        .mean()
+    )
 
 df_plot = df_clean.sort_values("time")
 
 plt.figure(figsize=(10, 8))
-# plt.plot(df_plot["time"], df_plot["Factor1"], marker="o", label="Factor1")
-# plt.plot(df_plot["time"], df_plot["Factor2"], marker="o", label="Factor2")
-plt.plot(df_plot["time"], df_plot["Factor1"], label="Factor1", linewidth=1)
-plt.plot(df_plot["time"], df_plot["Factor2"], label="Factor2", linewidth=1)
+
+for fname in factor_names:
+    plt.plot(
+        df_plot["time"],
+        df_plot[fname],
+        label=fname,
+        linewidth=1
+    )
 
 plt.xlabel("Time (sec)")
 plt.ylabel("Factor value")
 plt.legend()
 plt.title("Temporal transition of latent factors")
 
-plt.savefig(dir_result + "/factor_transition_raw_2.png")
-
+plt.savefig(f"{dir_result}/factor_transition_raw_{n_factor}.png")
 plt.close()
 
 plt.figure(figsize=(10, 8))
 
-plt.plot(
-    df_plot["time"],
-    df_plot["Factor1_ma"],
-    linewidth=1,
-    label=f"Factor1 (Moving Avg, window={window})"
-)
-plt.plot(
-    df_plot["time"],
-    df_plot["Factor2_ma"],
-    linewidth=1,
-    label=f"Factor2 (Moving Avg, window={window})"
-)
+for fname in factor_names:
+    plt.plot(
+        df_plot["time"],
+        df_plot[f"{fname}_ma"],
+        linewidth=1,
+        label=f"{fname} (Moving Avg, window={window})"
+    )
 
 plt.xlabel("Time [sec]")
 plt.ylabel("Factor value")
@@ -169,5 +166,5 @@ plt.title("Factor (Moving Average)")
 plt.legend()
 
 plt.tight_layout()
-plt.savefig(dir_result + "/factor_moving_average_2.png", dpi=300)
+plt.savefig(f"{dir_result}/factor_moving_average_{n_factor}.png", dpi=300)
 plt.close()
