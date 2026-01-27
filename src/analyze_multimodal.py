@@ -390,9 +390,22 @@ def main():
     feature_groups = list(set(feature_groups))
     
     # パス設定
-    path_data = "../data/"
-    path_result = "../outputs/analyze_multimodal/"
-    data_dir = path_data + args.data_dir
+    # スクリプトから実行される場合はプロジェクトルートがカレントディレクトリ
+    # 直接実行される場合はsrcディレクトリがカレントディレクトリの可能性がある
+    # 両方に対応するため、まず相対パスを試し、存在しない場合は絶対パスを構築
+    if os.path.exists("data/"):
+        path_data = "data/"
+        path_result = "outputs/analyze_multimodal/"
+    elif os.path.exists("../data/"):
+        path_data = "../data/"
+        path_result = "../outputs/analyze_multimodal/"
+    else:
+        # スクリプトの場所から相対パスを構築
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        project_root = os.path.dirname(script_dir)
+        path_data = os.path.join(project_root, "data") + os.sep
+        path_result = os.path.join(project_root, "outputs", "analyze_multimodal") + os.sep
+    data_dir = os.path.join(path_data, args.data_dir)
     
     # ファイルパスを自動構築
     data_eaf = os.path.join(data_dir, f"{args.data_dir}.eaf")
@@ -401,11 +414,12 @@ def main():
     smile_csv = os.path.join(data_dir, f"smile_timeseries_{args.data_dir}.csv")
     
     # 結果ディレクトリ名（データディレクトリ名を使用）
-    dir_result = path_result + args.data_dir + f"/factor_{args.n_factor}"
+    # os.path.joinを使用して安全にパスを構築
+    dir_result = os.path.join(path_result, args.data_dir, f"factor_{args.n_factor}")
     
     # 特徴量グループ名をソートしてディレクトリ名に含める
     feature_str = "_".join(sorted(feature_groups))
-    dir_result = dir_result + f"_features_{feature_str}"
+    dir_result = os.path.join(dir_result, f"features_{feature_str}")
     
     # 個別特徴量が指定されている場合はディレクトリ名に含める
     if selected_features:
@@ -415,7 +429,8 @@ def main():
                 feat_detail.append(f"{group}:" + ",".join(selected_features[group]))
             else:
                 feat_detail.append(f"{group}:all")
-        dir_result = dir_result + "_" + "_".join(feat_detail).replace(":", "-").replace(",", "+")
+        feat_detail_str = "_".join(feat_detail).replace(":", "-").replace(",", "+")
+        dir_result = os.path.join(dir_result, feat_detail_str)
     
     os.makedirs(dir_result, exist_ok=True)
     
@@ -471,9 +486,6 @@ def main():
             available = get_available_features(df_merged, group)
             print(f"  {group}: {', '.join(available)} (全特徴量)")
     
-    if X.empty or len(X.columns) == 0:
-        raise ValueError("選択された特徴量が存在しません。特徴量の選択とデータの読み込みを確認してください。")
-    
     # NaNを削除
     df_clean = df_merged.dropna(subset=X.columns)
     X_clean = df_clean[X.columns]
@@ -499,19 +511,19 @@ def main():
         columns=factor_names
     )
     
-    pd.set_option("display.max_columns", None)
-    pd.options.display.width = 160
+    pd.set_option("display.max_columns", None)  # pandasでの表示列数を最大に
+    pd.options.display.width = 160  # 表示文字数設定
     
-    print("\n因子負荷量")
+    print("因子負荷量")  # 各特徴量が各ファクターにどのようにどれくらい影響しているか
     print(loadings)
     
-    loadings.to_csv(f"{dir_result}/因子負荷量_{args.n_factor}.csv")
+    loadings.to_csv(os.path.join(dir_result, f"因子負荷量_{args.n_factor}.csv"))
     
     # 因子スコアを追加
     for i, fname in enumerate(factor_names):
         df_clean[fname] = Z[:, i]
     
-    df_clean.to_csv(f"{dir_result}/df_clean_{args.n_factor}.csv")
+    df_clean.to_csv(os.path.join(dir_result, f"df_clean_{args.n_factor}.csv"))
     
     # 移動平均
     df_clean_sorted = df_clean.sort_values("time")
@@ -539,7 +551,7 @@ def main():
     plt.title(f"Temporal transition of latent factors (n={args.n_factor})")
     plt.grid(True, alpha=0.3)
     plt.tight_layout()
-    plt.savefig(f"{dir_result}/factor_transition_raw_{args.n_factor}.png", dpi=300)
+    plt.savefig(os.path.join(dir_result, f"factor_transition_raw_{args.n_factor}.png"), dpi=300)
     plt.close()
     
     plt.figure(figsize=(12, 8))
@@ -557,7 +569,7 @@ def main():
     plt.legend()
     plt.grid(True, alpha=0.3)
     plt.tight_layout()
-    plt.savefig(f"{dir_result}/factor_moving_average_{args.n_factor}.png", dpi=300)
+    plt.savefig(os.path.join(dir_result, f"factor_moving_average_{args.n_factor}.png"), dpi=300)
     plt.close()
     
     print(f"\n結果を保存しました: {dir_result}")
