@@ -15,8 +15,8 @@ import os
 # python3 analyze_any.py [data_eaf] [data_wav] [dir_result] n_factor
 
 n_factor = int(sys.argv[4])
-path_data  = "./data/"
-path_result = "./result/analyze_any/"
+path_data  = "../data/"
+path_result = "../result/analyze_any/"
 data_eaf = path_data + sys.argv[1]
 data_wav = path_data + sys.argv[2]
 dir_result = path_result + sys.argv[3] + f"/factor_{n_factor}"
